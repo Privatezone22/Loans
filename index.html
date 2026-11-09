@@ -336,6 +336,7 @@ function newForm(E0){
 <div class="two"><div><label for="amount">Amount lent</label><input id="amount" type="number" inputmode="decimal" min="1" step="0.01" value="${v(L.principal)}"></div><div><label for="rate" id="ratel">Annual rate (%)</label><input id="rate" type="number" inputmode="decimal" min="0" step="0.01" value="${rv}"></div></div>
 <p class="mut" id="rhint" style="margin:6px 0 0"></p>
 <div class="two"><div><label for="term">Term (months)</label><input id="term" type="number" inputmode="numeric" min="1" step="1" value="${v(L.term)}"></div><div><label for="pay">Monthly payment</label><input id="pay" type="number" inputmode="decimal" min="0" step="0.01" value="${v(L.payment)}"></div></div>
+<p class="mut" id="ipv" style="margin:6px 0 0"></p>
 <div class="two"><div><label for="start">Loan date</label><input id="start" type="date" value="${L.startDate||t}"></div><div><label for="due">First due date</label><input id="due" type="date" value="${L.firstDue||E.addMonths(t,1,+t.slice(8))}"></div></div>
 <label for="nt">Notes (optional)</label><textarea id="nt" rows="2" style="width:100%">${v(L.notes)}</textarea>
 <p class="mut">Payment is calculated for you; you can change it.</p><p class="err" id="err"></p>
@@ -348,6 +349,8 @@ function wireNew(E0){
   const calc=()=>{lab();if(edited)return;const a=+el('amount').value,t=+el('term').value;if(a>0&&ar()>=0&&t>=1)el('pay').value=E.monthlyPayment(a,ar(),t).toFixed(2)};
   ['amount','rate','term'].forEach(k=>el(k).addEventListener('input',calc));
   el('pay').addEventListener('input',()=>{edited=true});
+  const pv=()=>{const a=+el('amount').value,t=+el('term').value,pm=+el('pay').value,s=el('start').value,d=el('due').value,o=$('#ipv');if(!(a>0&&t>=1&&pm>0&&s&&d&&d>s)||pm<=a*ar()/12){o.textContent='';return}try{const rows=E.buildSchedule({principal:a,annualRate:ar(),term:t,payment:pm,startDate:s,firstDue:d,payments:[]},s);const i=rows.reduce((x,r)=>x+r.interest,0);o.innerHTML='Total interest if paid on time: <b>'+money(r2(i))+'</b> (total repaid '+money(r2(a+i))+')'}catch(e){o.textContent=''}};
+  f.addEventListener('input',pv);f.addEventListener('change',pv);setTimeout(pv,0);
   if(!E0)el('start').addEventListener('change',()=>{const v=el('start').value;if(v)el('due').value=E.addMonths(v,1,+v.slice(8))});
   if(E0){armEdit=false;f.addEventListener('input',()=>{if(armEdit){armEdit=false;$('#sbtn').textContent='Save changes'}});lab()}
   f.addEventListener('submit',e=>{
