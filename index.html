@@ -61,6 +61,8 @@ body.nb .tabs{display:none}body.nb .top>.btn:not(.lnk){display:none}body.nb main
 .warn{display:block;width:100%;text-align:left;border:1px solid var(--bad);color:var(--bad);border-radius:14px;padding:12px;background:var(--card);font:inherit;font-weight:700;margin-bottom:12px;cursor:pointer}.mrow{display:flex;align-items:center;gap:14px;padding:14px;background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:8px}.mrow.drag{box-shadow:0 8px 20px rgba(0,0,0,.35);position:relative;z-index:3}.mname{flex:1;font-size:16px}.grip{width:30px;height:34px;display:grid;place-items:center;touch-action:none;cursor:grab;color:var(--mut);flex:none}
 .sw{position:relative;width:50px;height:28px;flex:none}.sw input{position:absolute;inset:0;width:100%;height:100%;margin:0;padding:0;border:0;opacity:0;cursor:pointer;z-index:1}.sw span{position:absolute;inset:0;border-radius:99px;background:var(--line);transition:background .15s}.sw span:after{content:"";position:absolute;left:3px;top:3px;width:22px;height:22px;border-radius:50%;background:var(--mut);transition:left .15s,background .15s}.sw input:checked+span{background:var(--acc)}.sw input:checked+span:after{left:25px;background:var(--on)}.icons{display:flex;flex-wrap:wrap;gap:8px}.ibtn{width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);display:grid;place-items:center;cursor:pointer;padding:0}.ibtn.on{border-color:var(--acc);box-shadow:0 0 0 2px var(--acc)}.cbtn{width:34px;height:34px;border-radius:50%;border:3px solid transparent;cursor:pointer;padding:0}.cbtn.on{border-color:var(--ink)}.tbtn{display:flex;align-items:center;gap:12px;width:100%;text-align:left;font:inherit;color:inherit;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px;cursor:pointer}.tbtn.on{border-color:var(--acc);box-shadow:0 0 0 2px var(--acc)}.tsw{display:flex;border-radius:8px;overflow:hidden;border:1px solid var(--line);flex:none}.tsw i{display:block;width:22px;height:30px}.nag{display:block;width:100%;text-align:left;border:1px dashed var(--line);color:var(--ink);border-radius:14px;padding:12px;background:var(--card);font:inherit;margin-bottom:12px;cursor:pointer}.empty{text-align:center;padding:36px 16px}
 .pill.Defaulted{color:var(--bad)}
+.mw{position:relative;display:block}.mw>b{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--mut);font-weight:600;pointer-events:none}.mw>input{padding-left:26px}
+.err:empty{display:none}
 </style></head><body><main id="app"></main><div id="nav"></div>
 <script>
 
@@ -221,7 +223,7 @@ const PdfLib=(function(){
   const MAP={8211:45,8212:45,8216:39,8217:39,8220:34,8221:34,8226:149,8364:128,160:32,8239:32};
   function enc(s){let o='';for(const ch of String(s)){let c=ch.charCodeAt(0);if(MAP[c]!==undefined)c=MAP[c];if(c>255)c=63;if(c===40||c===41||c===92)o+='\\'+String.fromCharCode(c);else if(c<32||c>126)o+='\\'+c.toString(8).padStart(3,'0');else o+=String.fromCharCode(c)}return o}
   function meas(s,size,bold){const t=bold?BW:RW;let w=0;for(const ch of String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'')){let c=ch.charCodeAt(0);if(ch==='\u00bf')c=63;if(ch==='\u00a1')c=33;w+=(c>=32&&c<=126?t[c-32]:556)}return w*size/1000}
-  const NAVY=[.09,.14,.23],GRAY=[.42,.44,.5],RULE=[.8,.83,.88];
+  const NAVY=[.09,.14,.23],GRAY=[.42,.44,.5],RULE=[.8,.83,.88],ACC=[.22,.5,.93];
   class Doc{
     constructor(){this.W=612;this.H=792;this.pages=[];this.addPage();this.top=50}
     addPage(){this.ops=[];this.pages.push(this.ops)}
@@ -232,16 +234,21 @@ const PdfLib=(function(){
     rect(x,top,w,h,c){this.ops.push(`${c[0]} ${c[1]} ${c[2]} rg ${x.toFixed(2)} ${(this.H-top-h).toFixed(2)} ${w.toFixed(2)} ${h.toFixed(2)} re f`)}
     line(x1,x2,top,c,lw){this.ops.push(`${c[0]} ${c[1]} ${c[2]} RG ${lw||.5} w ${x1} ${(this.H-top).toFixed(2)} m ${x2} ${(this.H-top).toFixed(2)} l S`)}
     need(h){if(this.top+h>745){this.addPage();this.top=50}}
-    header(title,sub,right,right2){this.rect(0,0,612,58,NAVY);this.text(title,42,30,{size:16,bold:true,color:[1,1,1]});this.text(sub,42,46,{size:9,color:[.78,.84,.95]});this.text(right,570,30,{size:9,color:[.78,.84,.95],align:'r'});if(right2)this.text(right2,570,46,{size:9,bold:true,color:[1,1,1],align:'r'});this.top=76}
-    keys(items){const n=items.length,w=(528-8*(n-1))/n;items.forEach((it,i)=>{const x=42+i*(w+8);this.rect(x,this.top,w,38,[.94,.955,.975]);this.text(String(it[0]).toUpperCase(),x+9,this.top+12,{size:7,color:GRAY});this.text(it[1],x+9,this.top+29,{size:12.5,bold:true,color:NAVY,max:w-14})});this.top+=48}
+    poly(pts,c){this.ops.push(`${c[0]} ${c[1]} ${c[2]} rg `+pts.map((q,i)=>q[0].toFixed(2)+' '+(this.H-q[1]).toFixed(2)+(i?' l':' m')).join(' ')+' f')}
+    circle(cx,top,r,c){const k=.5523*r,y=this.H-top,f=v=>v.toFixed(2);this.ops.push(`${c[0]} ${c[1]} ${c[2]} rg ${f(cx+r)} ${f(y)} m ${f(cx+r)} ${f(y+k)} ${f(cx+k)} ${f(y+r)} ${f(cx)} ${f(y+r)} c ${f(cx-k)} ${f(y+r)} ${f(cx-r)} ${f(y+k)} ${f(cx-r)} ${f(y)} c ${f(cx-r)} ${f(y-k)} ${f(cx-k)} ${f(y-r)} ${f(cx)} ${f(y-r)} c ${f(cx+k)} ${f(y-r)} ${f(cx+r)} ${f(y-k)} ${f(cx+r)} ${f(y)} c f`)}
+    header(title,sub,right,right2){const W=[1,1,1],L=[.7,.78,.94];this.rect(0,0,612,96,NAVY);this.rect(0,96,612,3,ACC);
+      this.circle(64,48,24,ACC);this.poly([[56,62],[66,40],[76,62]],[.78,.87,1]);this.poly([[46,62],[58,36],[70,62]],W);
+      this.text(this.brand||'',100,46,{size:22,bold:true,color:W,max:260});this.text('PRESTAMOS PERSONALES',100,62,{size:7.5,color:L});
+      this.text(title,570,38,{size:13,bold:true,color:W,align:'r'});this.text(sub,570,53,{size:8.5,color:L,align:'r',max:250});this.text(right,570,67,{size:8.5,color:L,align:'r'});if(right2)this.text(right2,570,81,{size:9,bold:true,color:W,align:'r'});this.top=118}
+    keys(items){const n=items.length,w=(528-10*(n-1))/n;items.forEach((it,i)=>{const x=42+i*(w+10);this.rect(x,this.top,w,50,[.94,.955,.985]);this.rect(x,this.top,3.5,50,ACC);this.text(String(it[0]).toUpperCase(),x+14,this.top+16,{size:7,bold:true,color:GRAY});this.text(it[1],x+14,this.top+38,{size:14,bold:true,color:NAVY,max:w-20})});this.top+=68}
     details(lt,left,rt,right){const rh=13.5,n=Math.max(left.length,right.length),colw=256;
       this.need(n*rh+30);[[lt,left,42],[rt,right,314]].forEach(([title,rows,x])=>{this.text(title,x,this.top+9,{size:8.5,bold:true,color:NAVY});this.line(x,x+colw,this.top+13,RULE,.8);
         rows.forEach((r,i)=>{const y=this.top+14+(i+1)*rh;this.text(r[0],x,y-3.5,{size:8,color:GRAY});this.text(r[1],x+colw,y-3.5,{size:8.8,bold:true,align:'r',max:colw-120});this.line(x,x+colw,y,[.92,.93,.95],.4)})});
       this.top+=14+n*rh+14}
-    section(t){this.need(44);this.text(t,42,this.top+12,{size:12,bold:true,color:NAVY});this.line(42,570,this.top+18,RULE,.8);this.top+=30}
+    section(t){this.need(44);this.rect(42,this.top+1,3.5,14,ACC);this.text(t,52,this.top+12.5,{size:12,bold:true,color:NAVY});this.line(42,570,this.top+19,RULE,.8);this.top+=32}
     summary(items){for(let i=0;i<items.length;i+=2){this.need(40);for(let j=0;j<2&&i+j<items.length;j++){const x=42+j*264,it=items[i+j];this.rect(x,this.top,256,30,[.955,.965,.98]);this.text(it[0],x+8,this.top+11,{size:8,color:GRAY});this.text(it[1],x+8,this.top+25,{size:12,bold:true,max:240})}this.top+=36}this.top+=6}
     table(cols,rows){const rh=15,tw=cols.reduce((a,c)=>a+c.w,0);
-      const head=()=>{this.rect(42,this.top,tw,rh+2,[.89,.91,.95]);let x=42;cols.forEach(c=>{this.text(c.h,c.a==='r'?x+c.w-4:x+4,this.top+11.5,{size:8,bold:true,color:[.15,.18,.25],align:c.a==='r'?'r':'l'});x+=c.w});this.top+=rh+2};
+      const head=()=>{this.rect(42,this.top,tw,rh+2,NAVY);let x=42;cols.forEach(c=>{this.text(c.h,c.a==='r'?x+c.w-4:x+4,this.top+11.5,{size:8,bold:true,color:[1,1,1],align:c.a==='r'?'r':'l'});x+=c.w});this.top+=rh+2};
       this.need(rh*3);head();
       rows.forEach((r,i)=>{if(this.top+rh>745){this.addPage();this.top=50;head()}
         if(i%2)this.rect(42,this.top,tw,rh,[.97,.975,.985]);let x=42;const col=r.gray?[.55,.58,.64]:[.1,.1,.12];
@@ -299,13 +306,24 @@ function stats(l){const s=statsBase(l);return l.defaulted&&(!l.type||l.type==='q
 function lostOf(l){return l.type==='quick'?Math.max(0,r2(l.principal-qpaid(l))):statsBase(l).bal}
 let detailFrom={n:'home'};
 function goBack(){const f=detailFrom||{n:'home'};go(f.n,f.id)}
-function go(n,id){rstData=null;armRst=false;rstErr='';if(n==='detail'&&view.n!=='epay'&&view.n!=='edit')detailFrom=['dash','sec','home'].includes(view.n)?{n:view.n,id:view.id}:{n:'home'};view={n,id};srcEdit=null;armSrc=null;armed=false;armPay=false;armEdit=false;armDef=false;cDate='';render();window.scrollTo(0,0)}
+function go(n,id){rstData=null;armRst=false;rstErr='';if(n==='detail'&&view.n!=='epay'&&view.n!=='edit')detailFrom=['dash','sec','home'].includes(view.n)?{n:view.n,id:view.id}:{n:'home'};if(['new','qnew','cnew'].includes(view.n)&&n!==view.n)clearDraft(view.n);view={n,id};srcEdit=null;armSrc=null;armed=false;armPay=false;armEdit=false;armDef=false;cDate='';render();window.scrollTo(0,0)}
+const MONEY_IDS=['amount','pay','pa','ep','et','qa','qt','qpa','ct','cx','rn2'];
+function fmtMI(v){let s=String(v==null?'':v).replace(/[^\d.]/g,'');const i=s.indexOf('.');let a=i<0?s:s.slice(0,i),b=i<0?null:s.slice(i+1).replace(/\./g,'').slice(0,2);a=a.replace(/^0+(?=\d)/,'').replace(/\B(?=(\d{3})+(?!\d))/g,',');return b===null?a:a+'.'+b}
+function moneyify(){try{const root=document.getElementById('app');if(!root)return;const pd=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value');
+  root.querySelectorAll('input').forEach(inp=>{if(inp.dataset.m||!(MONEY_IDS.includes(inp.id)||/^ba/.test(inp.id)))return;inp.dataset.m='1';
+    const cur=pd.get.call(inp);inp.type='text';inp.inputMode='decimal';inp.removeAttribute('min');inp.removeAttribute('step');
+    Object.defineProperty(inp,'value',{get(){return pd.get.call(inp).replace(/,/g,'')},set(v){pd.set.call(inp,fmtMI(v))},configurable:true});
+    pd.set.call(inp,fmtMI(cur));
+    inp.addEventListener('input',()=>{const raw=pd.get.call(inp),pos=inp.selectionStart||0,dl=raw.slice(0,pos).replace(/[^\d.]/g,'').length,f=fmtMI(raw);if(f!==raw){pd.set.call(inp,f);let c=0,k=0;while(k<f.length&&c<dl){if(/[\d.]/.test(f[k]))c++;k++}try{inp.setSelectionRange(k,k)}catch(e){}}});
+    const w=document.createElement('span');w.className='mw';const m=getComputedStyle(inp).margin;w.style.margin=m;inp.style.margin='0';inp.parentNode.insertBefore(w,inp);w.appendChild(inp);const d=document.createElement('b');d.textContent='$';w.appendChild(d)})}catch(e){}}
 function render(){
   const v=view.n;$('#app').innerHTML=v==='pick'?pick():v==='more'?more():v==='insights'?insights():v==='sec'?secPage(view.id):v==='manage'?manage():v==='sources'?srcView():v==='dash'?dash():v==='new'?newForm():v==='qnew'?qForm():v==='cnew'?cForm():v==='detail'?detail(view.id):v==='edit'?editView(view.id):v==='epay'?payEdit(view.id):home();
-  if(v==='new')wireNew();if(v==='qnew')wireQ();if(v==='cnew')wireC();if(v==='edit')wireEdit();if(v==='new'||v==='qnew'||v==='cnew')wireWarn();
+  moneyify();
+  if(v==='new')wireNew();if(v==='qnew')wireQ();if(v==='cnew')wireC();if(v==='edit')wireEdit();if(v==='new'||v==='qnew'||v==='cnew')wireWarn();if(v==='qnew')wireDraft($('#qf'),'qnew');if(v==='cnew')wireDraft($('#cf'),'cnew');
   const nb=['home','dash','insights','more','detail','sec','manage','sources'].includes(v);if(document.body)document.body.classList.toggle('nb',nb);$('#nav').innerHTML=nb?navHtml():'';
 }
-let lf='All',lq='';
+let lf='All',lq='',lsrc='';
+function goSrc(k){lsrc=decodeURIComponent(k);lf='All';lq='';go('home')}
 const FILTERS=['All','Long-term','Quick','Credit card','Recurring','Late','Paid off','Defaulted'];
 const KIND={quick:'Quick',card:'Credit card',recurring:'Recurring'},kindOf=l=>KIND[l.type]||'Long-term';
 const TC={'Long-term':'#4f8ef7','Quick':'#f0a030','Credit card':'#a566e0','Recurring':'#26b5a5'};
@@ -318,8 +336,9 @@ function loanList(){
   const q=lq.trim().toLowerCase(),rank=s=>s==='Late'?0:s==='Active'?1:2;
   const S=loans.map(l=>({l,s:stats(l)})).filter(x=>{const k=kindOf(x.l),st=x.s.status;
     const f=lf==='All'||(lf==='Late'&&st==='Late')||(lf==='Paid off'&&['Paid off','Paid','Ended'].includes(st))||(lf==='Defaulted'&&st==='Defaulted')||(lf==='Credit card'&&(k==='Credit card'||k==='Recurring'))||lf===k;
-    return f&&(!q||(x.l.name+' '+(x.l.source||'')).toLowerCase().includes(q))}).sort((a,b)=>rank(a.s.status)-rank(b.s.status));
-  return S.length?S.map(loanRow).join(''):'<p class="mut">No loans match.</p>';
+    return f&&(!lsrc||x.l.source===lsrc)&&(!q||(x.l.name+' '+(x.l.source||'')).toLowerCase().includes(q))}).sort((a,b)=>rank(a.s.status)-rank(b.s.status));
+  const chip=lsrc?`<div class="box" style="display:flex;justify-content:space-between;align-items:center;padding:8px 14px;margin-bottom:10px"><span>Source: <b>${esc(lsrc)}</b></span><button class="btn lnk" onclick="lsrc='';render()">Clear</button></div>`:'';
+  return chip+(S.length?S.map(loanRow).join(''):'<p class="mut">No loans match.</p>');
 }
 function setFilter(f){const c=document.querySelector('.fchips'),x=c?c.scrollLeft:0;lf=f;render();const c2=document.querySelector('.fchips');if(c2)c2.scrollLeft=x}
 function setSearch(v){lq=v;const e=$('#ll');if(e)e.innerHTML=loanList()}
@@ -335,10 +354,11 @@ function newForm(E0){
 <label for="rel">Source (bank the money came from)</label><input id="rel" list="srcs" autocomplete="off" placeholder="e.g. Open Bank" value="${v(L.source)}">${srcList()}
 <div class="two"><div><label for="amount">Amount lent</label><input id="amount" type="number" inputmode="decimal" min="1" step="0.01" value="${v(L.principal)}"></div><div><label for="rate" id="ratel">Annual rate (%)</label><input id="rate" type="number" inputmode="decimal" min="0" step="0.01" value="${rv}"></div></div>
 <p class="mut" id="rhint" style="margin:6px 0 0"></p>
+${E0?'':'<label class="chk"><input type="checkbox" id="mm"> Find months from payment</label>'}
 <div class="two"><div><label for="term">Term (months)</label><input id="term" type="number" inputmode="numeric" min="1" step="1" value="${v(L.term)}"></div><div><label for="pay">Monthly payment</label><input id="pay" type="number" inputmode="decimal" min="0" step="0.01" value="${v(L.payment)}"></div></div>
 <p class="mut" id="ipv" style="margin:6px 0 0"></p>
 <div class="two"><div><label for="start">Loan date</label><input id="start" type="date" value="${L.startDate||t}"></div><div><label for="due">First due date</label><input id="due" type="date" value="${L.firstDue||E.addMonths(t,1,+t.slice(8))}"></div></div>
-<label for="nt">Notes (optional)</label><textarea id="nt" rows="2" style="width:100%">${v(L.notes)}</textarea>
+<label for="nt">Notes (optional)</label><textarea id="nt" rows="2" style="width:100%;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:10px;font:inherit">${v(L.notes)}</textarea>
 <p class="mut">Payment is calculated for you; you can change it.</p><p class="err" id="err"></p>
 <div class="acts"><button class="btn" type="submit" id="sbtn">${E0?'Save changes':'Create loan'}</button></div></form>`;
 }
@@ -346,18 +366,28 @@ function wireNew(E0){
   const f=$('#nf');let edited=false;const el=id=>f.elements[id];
   const ar=()=>{const r=+el('rate').value,t=+el('term').value;return t>=1&&t<12?r*12/t/100:r/100};
   const lab=()=>{const t=+el('term').value,s=t>=1&&t<12;$('#ratel').textContent=s?'Loan rate (%)':'Annual rate (%)';$('#rhint').textContent=s&&+el('rate').value>0?'Calculated at '+r2(ar()*100)+'% a year.':''};
-  const calc=()=>{lab();if(edited)return;const a=+el('amount').value,t=+el('term').value;if(a>0&&ar()>=0&&t>=1)el('pay').value=E.monthlyPayment(a,ar(),t).toFixed(2)};
+  const mm=()=>!E0&&el('mm')&&el('mm').checked;
+  const sim=(a,i,P)=>{let b=a;for(let k=1;k<=600;k++){const it=Math.round(b*i*100)/100;if(P<=it)return Infinity;b=Math.round((b+it-P)*100)/100;if(b<=0)return k}return Infinity};
+  const solve=()=>{const a=+el('amount').value,r=+el('rate').value,P=+el('pay').value;if(!(a>0&&P>0&&r>=0))return 0;for(let t=1;t<12;t++){if(sim(a,r/100/t,P)<=t)return t}const k=sim(a,r/100/12,P);return k===Infinity?0:Math.max(12,k)};
+  const syncMode=()=>{if(E0)return;const on=mm();el('term').readOnly=on;el('term').style.opacity=on?.6:1};
+  const calc=()=>{if(mm()){const t=solve();el('term').value=t||'';lab();return}lab();if(edited)return;const a=+el('amount').value,t=+el('term').value;if(a>0&&ar()>=0&&t>=1)el('pay').value=E.monthlyPayment(a,ar(),t).toFixed(2)};
+  if(!E0)el('mm').addEventListener('change',()=>{edited=false;el('pay').value='';if(mm()){el('term').value=''}syncMode();lab();if(!mm()&&!el('term').value)el('term').value=''});
   ['amount','rate','term'].forEach(k=>el(k).addEventListener('input',calc));
-  el('pay').addEventListener('input',()=>{edited=true});
-  const pv=()=>{const a=+el('amount').value,t=+el('term').value,pm=+el('pay').value,s=el('start').value,d=el('due').value,o=$('#ipv');if(!(a>0&&t>=1&&pm>0&&s&&d&&d>s)||pm<=a*ar()/12){o.textContent='';return}try{const rows=E.buildSchedule({principal:a,annualRate:ar(),term:t,payment:pm,startDate:s,firstDue:d,payments:[]},s);const i=rows.reduce((x,r)=>x+r.interest,0);o.innerHTML='Total interest if paid on time: <b>'+money(r2(i))+'</b> (total repaid '+money(r2(a+i))+')'}catch(e){o.textContent=''}};
+  el('pay').addEventListener('input',()=>{edited=el('pay').value!=='';if(mm())calc()});
+  const pv=()=>{const a=+el('amount').value,t=+el('term').value,pm=+el('pay').value,s=el('start').value,d=el('due').value,o=$('#ipv');o.className='mut';
+    if(mm()&&a>0&&pm>0&&!t){o.className='err';o.textContent='The payment must be more than the monthly interest ('+money(r2(a*(+el('rate').value)/100/12))+' or more).';return}
+    if(!(a>0&&t>=1&&pm>0&&s&&d&&d>s)||pm<=a*ar()/12){o.textContent='';return}
+    try{const rows=E.buildSchedule({principal:a,annualRate:ar(),term:t,payment:pm,startDate:s,firstDue:d,payments:[]},s);const i=rows.reduce((x,r)=>x+r.interest,0);
+      o.innerHTML=(mm()?'Ends in <b>'+rows.length+' months</b> · interest ':'Interest if paid on time: ')+'<b>'+money(r2(i))+'</b>'}catch(e){o.textContent=''}};
   f.addEventListener('input',pv);f.addEventListener('change',pv);setTimeout(pv,0);
   if(!E0)el('start').addEventListener('change',()=>{const v=el('start').value;if(v)el('due').value=E.addMonths(v,1,+v.slice(8))});
   if(E0){armEdit=false;f.addEventListener('input',()=>{if(armEdit){armEdit=false;$('#sbtn').textContent='Save changes'}});lab()}
+  if(!E0)wireDraft(f,'new',()=>({edited}),d=>{edited=!!d.edited;syncMode()});
   f.addEventListener('submit',e=>{
     e.preventDefault();
     const T=+el('term').value,L={name:el('nm').value.trim(),source:el('rel').value.trim(),principal:+el('amount').value,annualRate:ar(),termRate:(T>=1&&T<12?+el('rate').value:null),term:T,payment:+el('pay').value,startDate:el('start').value,firstDue:el('due').value,notes:el('nt').value.trim()};
     const i1=Math.round(L.principal*L.annualRate/12*100)/100;
-    const err=!L.name?'Enter the borrower name.':!(L.principal>0)?'The amount must be greater than 0.':!(T>=1)?'Enter the term in months.':!(L.payment>0)?'Enter the monthly payment.':L.payment<=i1?'The monthly payment must be greater than the first month’s interest ('+money(i1)+').':!(L.startDate&&L.firstDue&&L.firstDue>L.startDate)?'The first due date must be after the loan date.':'';
+    const err=!L.name?'Enter the borrower name.':!(L.principal>0)?'The amount must be greater than 0.':!(T>=1)?(mm()?'The payment must be more than the monthly interest.':'Enter the term in months.'):!(L.payment>0)?'Enter the monthly payment.':L.payment<=i1?'The monthly payment must be greater than the first month’s interest ('+money(i1)+').':!(L.startDate&&L.firstDue&&L.firstDue>L.startDate)?'The first due date must be after the loan date.':'';
     if(err){$('#err').textContent=err;return}
     if(E0){
       const ch=['principal','annualRate','term','payment','startDate','firstDue'].some(k=>E0[k]!==L[k]);
@@ -407,6 +437,11 @@ function toggleDef(id){const l=loans.find(x=>x.id===id);if(!l)return;
   if(l.defaulted){delete l.defaulted;delete l.lost;armDef=false;save();render();return}
   if(!armDef){armDef=true;render();return}
   l.lost=lostOf(l);l.defaulted=today();armDef=false;save();render()}
+function wireDraft(f,key,get,set){const k='prestamos-draft-'+key;
+  try{const d=JSON.parse(localStorage.getItem(k)||'null');if(d&&Date.now()-d.ts<172800000){const els=Array.from(f.elements).filter(e=>e.id);els.forEach(e=>{const v=d.v[e.id];if(v!=null){if(e.type==='checkbox')e.checked=!!v;else e.value=v}});if(set)set(d.x||{});els.forEach(e=>{e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}))});f.insertAdjacentHTML('beforebegin','<p class="mut" style="margin:0 0 8px">Your unfinished loan was restored. Cancel clears it.</p>')}}catch(e){}
+  const sv=()=>{try{const v={};Array.from(f.elements).forEach(e=>{if(e.id)v[e.id]=e.type==='checkbox'?e.checked:e.value});localStorage.setItem(k,JSON.stringify({ts:Date.now(),v,x:get?get():{}}))}catch(e){}};
+  f.addEventListener('input',sv);f.addEventListener('change',sv)}
+function clearDraft(k){try{localStorage.removeItem('prestamos-draft-'+k)}catch(e){}}
 function wireWarn(){const i=$('#nm')||$('#qn')||$('#cn');if(!i)return;const p=document.createElement('p');p.className='err';i.insertAdjacentElement('afterend',p);
   i.addEventListener('input',()=>{const n=i.value.trim().toLowerCase(),x=n&&loans.find(l=>l.defaulted&&l.name.toLowerCase()===n);p.textContent=x?'Warning: '+x.name+' has a defaulted loan ('+money(x.lost||0)+' lost).':''})}
 function payEdit(id){const l=loans.find(x=>x.id===id),p=l&&l.payments&&l.payments[editPay];if(!p)return home();
@@ -422,7 +457,7 @@ ${q?`<label for="es">Source (bank the money came from)</label><input id="es" lis
 <label for="ep">Amount lent</label><input id="ep" type="number" inputmode="decimal" min="1" step="0.01" value="${v(l.principal)}">
 <div class="two"><div><label for="el">Loan date</label><input id="el" type="date" value="${l.loanDate}"></div><div><label for="ed">Payment date</label><input id="ed" type="date" value="${l.dueDate}"></div></div>
 <label for="et">Amount to receive</label><input id="et" type="number" inputmode="decimal" min="0" step="0.01" value="${v(l.toReceive)}">`:''}
-<label for="ex">Notes (optional)</label><textarea id="ex" rows="2" style="width:100%">${v(l.notes)}</textarea>
+<label for="ex">Notes (optional)</label><textarea id="ex" rows="2" style="width:100%;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:10px;font:inherit">${v(l.notes)}</textarea>
 <p class="err" id="err"></p><div class="acts"><button class="btn" type="submit" id="sbtn">Save changes</button></div></form>`}
 function wireEdit(){const l=loans.find(x=>x.id===view.id);if(!l||!l.type)return wireNew(l);
   const f=$('#ef'),el=id=>f.elements[id],q=l.type==='quick';armEdit=false;
@@ -576,7 +611,7 @@ function dashData(){
   });
   return D;
 }
-const PAL=['#2f6fdb','#1fa57a','#e0912b','#b05fd0','#d6546a','#6c7a89'];
+const PAL=['#2f6fdb','#1fa57a','#e0912b','#b05fd0','#d6546a','#6c7a89','#0a0a0a'];
 const kfmt=v=>v>=1e6?(v/1e6).toFixed(1)+'M':v>=1000?(v/1000).toFixed(v>=10000?0:1)+'k':String(Math.round(v));
 const TX='style="font-size:9px;fill:var(--mut)"',pad2=n=>String(n).padStart(2,'0');
 function mpts(a,b){
@@ -669,7 +704,7 @@ function cfBlock(X){return `<h2>Projected cash flow</h2><div class="sum"><div><s
 function intBlock(X){return `<h2>Projected interest income</h2><div class="chart">${lineChart(X.IP)}<p class="mut" style="margin:6px 0 0">Interest per month: solid line is what you earned, dashed line is the projection. Next 12 months: <b>${money(X.next12)}</b>.</p></div>`}
 function balBlock(X){return `<h2 id="sec-bal">Balance outlook</h2><div class="chart">${lineChart(X.P)}<p class="mut" style="margin:6px 0 0">Long-term and quick loans still to collect: solid line is the past, dashed line is the projection if payments arrive on schedule.</p></div>`}
 function histBlock(X){return `<h2 id="sec-int">Interest earned over time</h2><div class="chart">${X.IH?lineChart(X.IH,false)+'<p class="mut" style="margin:6px 0 0">Total interest earned so far, adding up month by month.</p>':'<p class="mut">No interest earned yet.</p>'}</div>`}
-function srcBlock(X){return `<h2>By source</h2><div class="chart">${donut(X.S)}</div>${X.S.length?`<div class="tw"><table style="min-width:0"><thead><tr><th>Source</th><th ${RA}>Lent</th><th ${RA}>Still to collect</th></tr></thead><tbody>${X.S.map(([k,v])=>`<tr><td>${esc(k)}</td><td ${RA}>${money(v.lent)}</td><td ${RA}>${money(v.owed)}</td></tr>`).join('')}</tbody></table></div>`:''}`}
+function srcBlock(X){return `<h2>By source</h2><div class="chart">${donut(X.S)}</div>${X.S.length?`<div class="tw"><table style="min-width:0"><thead><tr><th>Source</th><th ${RA}>Lent</th><th ${RA}>Still to collect</th></tr></thead><tbody>${X.S.map(([k,v])=>`<tr style="cursor:pointer" onclick="goSrc('${encodeURIComponent(k)}')"><td>${esc(k)}</td><td ${RA}>${money(v.lent)}</td><td ${RA}>${money(v.owed)}</td></tr>`).join('')}</tbody></table></div>`:''}`}
 const ICONS={bank:'<path d="M3 10l9-6 9 6"/><path d="M5 10v8M9.5 10v8M14.5 10v8M19 10v8"/><path d="M3 20h18"/>',card:'<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18M7 15h4"/>',wallet:'<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M3 10V6a2 2 0 0 1 2-2h11v3"/><circle cx="16.5" cy="13.5" r="1.2"/>',coins:'<ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6"/><path d="M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"/>',cash:'<rect x="2.5" y="6" width="19" height="12" rx="2"/><circle cx="12" cy="12" r="2.6"/><path d="M6 9.5v.1M18 14.5v.1"/>',phone:'<rect x="7" y="2.5" width="10" height="19" rx="2.2"/><path d="M11 18.5h2"/>',building:'<path d="M5 21V5a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v16"/><path d="M15 9h3a1 1 0 0 1 1 1v11"/><path d="M3 21h18M9 8h2M9 12h2M9 16h2"/>',shop:'<path d="M4 9l1.5-5h13L20 9"/><path d="M4 9a2.7 2.7 0 0 0 5.3 0 2.7 2.7 0 0 0 5.4 0A2.7 2.7 0 0 0 20 9"/><path d="M5 11.5V20h14v-8.5M10 20v-5h4v5"/>',person:'<circle cx="12" cy="8" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/>'};
 const ICON_IDS=Object.keys(ICONS);
 let srcReg=[],srcEdit=null,sx={},armSrc=null,srcErr='';
@@ -691,7 +726,7 @@ applyTheme();
 const srcInfo=n=>srcReg.find(s=>s.name===n)||null,srcColor=(k,i)=>(srcInfo(k)&&srcInfo(k).color)||PAL[i%6];
 function ensureSrc(n){if(n&&!srcReg.some(s=>s.name.toLowerCase()===n.toLowerCase())){srcReg.push({id:'s'+Date.now().toString(36),name:n,icon:'bank',color:PAL[srcReg.length%6],img:null});persistSrc()}}
 function addLoan(L){if(L.source)ensureSrc(L.source);loans.push(L)}
-function badgeOf(s,sz){return s.img?`<span class="bdg" style="width:${sz}px;height:${sz}px;background:#fff;overflow:hidden"><img src="${s.img}" alt="" style="width:100%;height:100%;object-fit:cover"></span>`:`<span class="bdg" style="width:${sz}px;height:${sz}px;background:${s.color};color:#fff"><svg width="${Math.round(sz*.55)}" height="${Math.round(sz*.55)}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[s.icon]||ICONS.bank}</svg></span>`}
+function badgeOf(s,sz){return s.img?`<span class="bdg" style="width:${sz}px;height:${sz}px;background:#fff;overflow:hidden"><img src="${s.img}" alt="" style="width:100%;height:100%;object-fit:cover"></span>`:`<span class="bdg" style="width:${sz}px;height:${sz}px;background:${s.color};color:#fff${s.color==='#0a0a0a'?';box-shadow:inset 0 0 0 1px rgba(255,255,255,.35)':''}"><svg width="${Math.round(sz*.55)}" height="${Math.round(sz*.55)}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[s.icon]||ICONS.bank}</svg></span>`}
 const srcBadge=(n,sz)=>badgeOf(srcInfo(n)||{icon:'bank',color:'var(--mut)'},sz||40);
 function srcView(){
   if(srcEdit)return srcEditor();
@@ -722,9 +757,11 @@ const MESES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','
 const fdE=s=>{if(!s)return '-';const p=s.split('-');return +p[2]+' '+MESES[p[1]-1]+' '+p[0]};
 const STE={Active:'Al corriente',Late:'Atrasado','Paid off':'Liquidado',Paid:'Pagado',Ended:'Terminado',Renewed:'Renovado'};
 function loanNum(l){if(!l.num){let m=Math.max(0,...loans.map(x=>x.num||0));loans.forEach(x=>{if(!x.num)x.num=++m});save()}return 'PR-'+String(l.num).padStart(4,'0')}
+let LENDER_NAME='Cima Capital';
 function buildStatement(l){
   const d=new PdfLib.Doc(),t=today(),num=loanNum(l),k=kindOf(l),$=fmtM,s=stats(l),est=STE[s.status]||s.status;
   const sub={'Long-term':'Préstamo a largo plazo','Quick':'Préstamo rápido','Credit card':'Compra con tarjeta de crédito (sin intereses)','Recurring':'Pago recurrente (sin intereses)'}[k];
+  d.brand=LENDER_NAME;
   d.header('ESTADO DE CUENTA',sub,'Emitido el '+fdE(t),num);
   const nx=s.cur?fdE(s.cur.due):'-';
   if(l.type==='quick'){
@@ -757,7 +794,7 @@ function buildStatement(l){
     d.note('Las filas en gris son proyecciones: suponen que se paga el pago mensual.');
   }
   const slug=l.name.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Za-z0-9]+/g,'-').replace(/^-|-$/g,'')||'prestamo';
-  return{bytes:d.bytes('Estado de cuenta - '+l.name,(x,i,n)=>{x.line(42,570,758,[.8,.83,.88],.6);x.text('Estado de cuenta - '+l.name+' - '+num,42,772,{size:8,color:[.5,.52,.58],max:400});x.text('Página '+i+' de '+n,570,772,{size:8,color:[.5,.52,.58],align:'r'})}),filename:'Estado-de-cuenta-'+slug+'-'+t+'.pdf',title:'Estado de cuenta - '+l.name};
+  return{bytes:d.bytes('Estado de cuenta - '+l.name,(x,i,n)=>{x.line(42,570,758,[.8,.83,.88],.6);x.text(LENDER_NAME,42,772,{size:8,bold:true,color:[.09,.14,.23]});x.text('Estado de cuenta - '+l.name+' - '+num,42+PdfLib.meas(LENDER_NAME,8,true)+8,772,{size:8,color:[.5,.52,.58],max:340});x.text('Página '+i+' de '+n,570,772,{size:8,color:[.5,.52,.58],align:'r'})}),filename:'Estado-de-cuenta-'+slug+'-'+t+'.pdf',title:'Estado de cuenta - '+l.name};
 }
 async function deliverFile(r,mode){
   const file=new File([r.bytes],r.filename,{type:r.type||'application/pdf'});
@@ -789,7 +826,7 @@ function backupBox(){const lb=lastBackup(),n=lb?E.daysBetween(lb,today()):null;l
   return `<h2>Backup and restore</h2><div class="box"><p style="margin:0"><b>Last backup:</b> ${lb?fd(lb)+' ('+(n===0?'today':n+' day'+(n===1?'':'s')+' ago')+')':'never'}</p><p class="mut" style="margin:6px 0 0">Your loans live only on this phone. A backup is a file you keep safe, for example in Google Drive.</p><div class="acts"><button class="btn" onclick="doBackup('share')">Back up now</button><button class="btn sec" onclick="doBackup('save')">Save file</button></div><p class="mut" id="bkmsg" style="margin:8px 0 0"></p></div>
 <div class="box" style="margin-top:12px"><b>Restore</b><p class="mut" style="margin:4px 0 8px">Choose a backup file you saved before.</p><input type="file" accept=".json,application/json" onchange="pickBackup(this)">${rstErr?`<p class="err">${esc(rstErr)}</p>`:''}${rp}${undo?`<div class="acts"><button class="btn sec" onclick="undoRestore()">Undo last restore</button></div>`:''}</div>`}
 function backupNag(){const lb=lastBackup();if(!loans.length||(lb&&E.daysBetween(lb,today())<=30))return '';return `<button class="nag" onclick="go('more')">Back up your data. ${lb?'Last backup: '+fd(lb)+'.':'You have not made one yet.'} Tap to open.</button>`}
-function srcSection(X){return `<h2>By source</h2><div class="chart">${donut(X.S)}</div>${X.S.length?`<div class="box" style="padding:0">${X.S.map(([k,v],i)=>`<div class="pay"><span class="bd">${srcBadge(k)}<span><b>${esc(k)}</b><small>Lent ${money(v.lent)}</small></span></span><b>${money(v.owed)}</b></div>`).join('')}</div>`:''}`}
+function srcSection(X){return `<h2>By source</h2><div class="chart">${donut(X.S)}</div>${X.S.length?`<div class="box" style="padding:0">${X.S.map(([k,v],i)=>`<div class="pay" role="button" tabindex="0" style="cursor:pointer" onclick="goSrc('${encodeURIComponent(k)}')"><span class="bd">${srcBadge(k)}<span><b>${esc(k)}</b><small>Lent ${money(v.lent)}</small></span></span><b>${money(v.owed)}</b></div>`).join('')}</div>`:''}`}
 function srcBars(X){if(!X.S.length)return '';const tot=X.S.reduce((a,x)=>a+x[1].owed,0)||1;return `<h2>By source</h2>${X.S.map(([k,v],i)=>`<div class="lb" style="border-left-color:${PAL[i%6]}"><span><b>${esc(k)}</b><small><i class="tag">${Math.round(v.owed/tot*100)}% of still to collect</i>Lent ${money(v.lent)}</small></span><b>${money(v.owed)}</b></div>`).join('')}`}
 function statusBlock(X){const cn=X.cn,lg=(n,c,l)=>`<span><i class="dot" style="background:${c}"></i>${l} ${n}</span>`;return `<h2>Loans by status</h2><div class="box">${cn.Active+cn.Late?`<div class="bar">${seg3(cn.Active,'var(--ok)')}${seg3(cn.Late,'var(--bad)')}</div>`:''}<div class="chips">${lg(cn.Active,'var(--ok)','Active')}${lg(cn.Late,'var(--bad)','Late')}${lg(cn['Paid off'],'var(--mut)','Paid off')}${lg(cn.Renewed,'var(--line)','Renewed')}</div></div>`}
 function lbRows(a){return a.map(x=>{const tc=TC[x.kind]||'var(--mut)',bad=x.c==='bad';return `<div class="lb" role="button" tabindex="0" style="border-left-color:${bad?'var(--bad)':tc};cursor:pointer" onclick="go('detail','${x.id}')" onkeydown="if(event.key==='Enter')go('detail','${x.id}')"><span><b>${esc(x.name)}</b><small><i class="tag" style="color:${tc};border-color:${tc}">${x.kind||''}</i>${fd(x.due)}${x.tag?' ('+x.tag+')':''}</small></span><b${bad?' class="r"':''}>${money(x.amount)}</b></div>`}).join('')}
@@ -837,7 +874,7 @@ ${iCard('%','Interest',`You have earned ${money(r2(D.earned))} and expect ${mone
 ${iCard('$','Money collected',`You expect ${money(X.tot)} in the next 12 months.`,iRow('So far this month',X.cMonth)+iRow('So far this year',X.cYear)+iRow('Expected by year-end',X.cProj,1))}
 ${D.lost>0?iCard('✕','Lost to defaults',`${money(r2(D.lost))} of principal will not come back.`,iRow('Principal lost',D.lost)+iRow('Interest earned so far',r2(D.earned))):''}
 ${iCard('!','Alerts',X.od>0?`${money(X.od)} is overdue.`:'Nothing is overdue.',iRow('Overdue to collect',X.od)+iRow('Due in the next 30 days',r2(X.up.reduce((a,x)=>a+x.amount,0))))}`}
-function navHtml(){const o=n=>(n==='dash'&&(view.n==='dash'||view.n==='sec'))||(n==='home'&&(view.n==='home'||view.n==='detail'))||(n==='more'&&(view.n==='manage'||view.n==='sources'))||view.n===n?'on':'';return `<nav class="bnav"><button class="${o('dash')}" onclick="go('dash')">Dashboard</button><button class="${o('insights')}" onclick="go('insights')">Insights</button><button class="${o('home')}" onclick="go('home')">Loans</button><button class="${o('more')}" onclick="go('more')">More</button></nav><button class="fab" onclick="go('pick')" aria-label="New loan">+</button>`}
+function navHtml(){const o=n=>(n==='dash'&&(view.n==='dash'||view.n==='sec'))||(n==='home'&&(view.n==='home'||view.n==='detail'))||(n==='more'&&(view.n==='manage'||view.n==='sources'))||view.n===n?'on':'';return `<nav class="bnav"><button class="${o('dash')}" onclick="go('dash')">Dashboard</button><button class="${o('insights')}" onclick="go('insights')">Insights</button><button class="${o('home')}" onclick="lsrc='';go('home')">Loans</button><button class="${o('more')}" onclick="go('more')">More</button></nav><button class="fab" onclick="go('pick')" aria-label="New loan">+</button>`}
 function more(){return `<header class="top"><h1>More</h1></header><h2 style="margin-top:0">Customize</h2><div class="box"><button class="btn sec" style="width:100%" onclick="go(\'manage\')">Manage dashboard</button><button class="btn sec" style="width:100%;margin-top:10px" onclick="go('sources')">Manage sources</button></div><h2>Theme</h2><div class="box">${THEMES.map(x=>`<button class="tbtn ${theme===x.id?'on':''}" onclick="setTheme('${x.id}')"><span class="tsw"><i style="background:${x.sw[0]}"></i><i style="background:${x.sw[1]}"></i><i style="background:${x.sw[2]}"></i></span><b>${x.name}</b></button>`).join('')}</div>${backupBox()}<h2>About this preview</h2><div class="box"><p class="mut" style="margin:0">Data is saved only in this browser. Use test data.</p></div>`}
 function addPay(e,id){
   e.preventDefault();const l=loans.find(x=>x.id===id),d=$('#pd').value,a=+$('#pa').value;
@@ -851,5 +888,15 @@ function demo(){
   loans.push({id:'demo'+Date.now().toString(36),name:'Sample loan',source:'Open Bank',principal:10000,annualRate:.12,term:36,payment:370,startDate:'2026-07-07',firstDue:'2026-08-07',payments:p.map(x=>({date:x[0],amount:x[1],note:''}))});
   save();render();
 }
+(function(){const tabs=['insights','home','more'];let exitAt=0,te=null;
+  const toast=m=>{try{if(!te){te=document.createElement('div');te.style.cssText='position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:#222;color:#fff;padding:10px 16px;border-radius:20px;font-size:14px;z-index:99;box-shadow:0 2px 10px rgba(0,0,0,.4)';document.body.appendChild(te)}te.textContent=m;te.style.display='block';setTimeout(()=>{if(te)te.style.display='none'},2200)}catch(e){}};
+  try{history.replaceState({s:0},'');history.pushState({s:1},'')}catch(e){return}
+  window.addEventListener('popstate',()=>{
+    if(view.n==='dash'&&Date.now()-exitAt<2200){history.back();return}
+    try{history.pushState({s:1},'')}catch(e){}
+    if(view.n==='dash'){exitAt=Date.now();toast('Press back again to exit');return}
+    if(tabs.includes(view.n)){go('dash');return}
+    const b=document.querySelector('#app header.top button');if(b)b.click();else go('dash')})
+})();
 render();
 </script><script>if('serviceWorker' in navigator&&/^https?:/.test(location.protocol)&&!window.claude){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(function(){})})}</script></body></html>
